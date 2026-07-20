@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Punch Clock — Office Hours Ledger</title>
+<link id="faviconLink" rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='17' fill='none' stroke='%238792A3' stroke-width='2.5'/%3E%3Cline x1='20' y1='20' x2='20' y2='8' stroke='%23E14C63' stroke-width='3.2' stroke-linecap='round'/%3E%3Cline x1='20' y1='20' x2='27' y2='20' stroke='%23E14C63' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='18' fill='%23D8ECFB'/%3E%3Ccircle cx='20' cy='20' r='17' fill='none' stroke='%23B7DBF2' stroke-width='2'/%3E%3Cline x1='20' y1='20' x2='20' y2='9' stroke='%23E14C63' stroke-width='3' stroke-linecap='round'/%3E%3Cline x1='20' y1='20' x2='27' y2='20' stroke='%23E14C63' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -770,6 +771,15 @@
       'that\'s <b>' + formatHM(Math.floor(neededToday / 60), Math.round(neededToday % 60)) + '</b> today to hold a <b>7h 12m</b> overall average';
   }
 
+  let advBase = null; // {totalMinutes, avgMinutes, days} captured once per advanced session
+
+  function captureAdvBase(){
+    const totalMinutes = num(totalH) * 60 + num(totalM);
+    const avgMinutes = num(avgH) * 60 + num(avgM);
+    const days = avgMinutes > 0 ? totalMinutes / avgMinutes : 0;
+    advBase = { totalMinutes, avgMinutes, days };
+  }
+
   function updateAdvanced(){
     if (!advToggle.checked) return;
 
@@ -778,10 +788,9 @@
       return;
     }
 
-    const avgMinutes = num(avgH) * 60 + num(avgM);
-    const totalMinutes = num(totalH) * 60 + num(totalM);
+    if (!advBase) captureAdvBase();
 
-    if (avgMinutes <= 0){
+    if (advBase.avgMinutes <= 0){
       advCaption.textContent = 'Set an average per day above first.';
       return;
     }
@@ -791,9 +800,10 @@
     let duration = (oh * 60 + om) - (ih * 60 + im);
     if (duration <= 0) duration += 24 * 60; // handles an overnight punch
 
-    const daysWorked = totalMinutes / avgMinutes;
-    const newDays = daysWorked + 1;
-    const newTotalMinutes = totalMinutes + duration;
+    // Always computed from the fixed baseline, never from the field's own
+    // current value — this keeps repeated calls idempotent.
+    const newDays = advBase.days + 1;
+    const newTotalMinutes = advBase.totalMinutes + duration;
     const newAvgMinutes = newTotalMinutes / newDays;
 
     let newTotalH = Math.floor(newTotalMinutes / 60);
@@ -821,25 +831,38 @@
   }
 
   function updateAll(){
-    updateAdvanced();
     updateDays();
     updateExit();
   }
 
-  [totalH, totalM, avgH, avgM, entryTime, advIn, advOut, advToggle].forEach(el => el.addEventListener('input', updateAll));
+  function updateAdvancedAndAll(){
+    updateAdvanced();
+    updateAll();
+  }
+
+  // Total/average edits only affect "Logged so far"; entry time only affects
+  // "Today's punch" — the two never cross-contaminate.
+  [totalH, totalM, avgH, avgM].forEach(el => el.addEventListener('input', updateAll));
+  entryTime.addEventListener('input', updateExit);
+  [advIn, advOut].forEach(el => el.addEventListener('input', updateAdvancedAndAll));
+
   advToggle.addEventListener('change', () => {
-    if (!advToggle.checked){
+    if (advToggle.checked){
+      captureAdvBase();
+    } else {
       advIn.value = '';
       advOut.value = '';
       advCaption.textContent = '';
+      advBase = null;
+      updateAll();
     }
-    updateAll();
   });
 
   resetBtn.addEventListener('click', () => {
     [totalH, totalM, avgH, avgM, entryTime, advIn, advOut].forEach(el => { el.value = ''; });
     advToggle.checked = false;
     advCaption.textContent = '';
+    advBase = null;
     daysOut.dataset.current = '';
     exitOut.dataset.current = '';
 
@@ -892,11 +915,23 @@
 
   let themeIndex = 0; // starts on white
 
+  const faviconLink = document.getElementById('faviconLink');
+
+  function setFavicon(amberColor){
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">' +
+      '<circle cx="20" cy="20" r="17" fill="none" stroke="#8792A3" stroke-width="2.5"/>' +
+      '<line x1="20" y1="20" x2="20" y2="8" stroke="' + amberColor + '" stroke-width="3.2" stroke-linecap="round"/>' +
+      '<line x1="20" y1="20" x2="27" y2="20" stroke="' + amberColor + '" stroke-width="3.2" stroke-linecap="round"/>' +
+      '</svg>';
+    faviconLink.href = 'data:image/svg+xml,' + encodeURIComponent(svg);
+  }
+
   function applyTheme(index){
     const theme = THEMES[index];
     const root = document.documentElement.style;
     Object.keys(theme.vars).forEach(key => root.setProperty(key, theme.vars[key]));
     document.body.dataset.theme = theme.name;
+    setFavicon(theme.vars['--amber']);
   }
 
   themeBtn.addEventListener('click', () => {
