@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Punch Clock — Office Hours Ledger</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='18' fill='%23D8ECFB'/%3E%3Ccircle cx='20' cy='20' r='17' fill='none' stroke='%23B7DBF2' stroke-width='2'/%3E%3Cline x1='20' y1='20' x2='20' y2='9' stroke='%23E14C63' stroke-width='3' stroke-linecap='round'/%3E%3Cline x1='20' y1='20' x2='27' y2='20' stroke='%23E14C63' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#D8ECFB;
+    --line:#B7DBF2;
+    --line-soft:#C6E2F5;
+    --text:#132542;
+    --muted:#4E77A4;
+    --muted-2:#7BA1C4;
+    --amber:#E14C63;
+    --amber-dim:#F0A2B0;
+    --mint:#1D6FB8;
+    --mint-dim:#6FA3D1;
+    --danger:#D23C3C;
+    --radius:20px;
+    --sh-dark:rgba(120,163,205,0.45);
+    --sh-light:rgba(255,255,255,0.85);
+    --accent-rgb:225,76,99;
+    --accent2-rgb:29,111,184;
+    --theme-transition:background-color .4s ease, color .4s ease;
+  }
+
+  body, .ticket, .hm-group, .time-input-wrap, .result, .reset-btn, .ticket-tag, .adv-switch, .perforation .notch{
+    transition:var(--theme-transition), box-shadow .4s ease, border-color .4s ease;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(var(--accent-rgb),0.07), transparent 60%),
+      radial-gradient(1000px 500px at 85% 110%, rgba(var(--accent2-rgb),0.08), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Manrope', sans-serif;
+    min-height:100%;
+    display:flex;
+    justify-content:center;
+    padding:56px 20px 80px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .wrap{
+    width:100%;
+    max-width:880px;
+  }
+
+  .tickets-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:24px;
+    align-items:start;
+  }
+
+  @media (max-width:720px){
+    .tickets-grid{ grid-template-columns:1fr; }
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:14px;
+    margin-bottom:36px;
+    opacity:0;
+    animation:riseIn .6s ease forwards;
+  }
+  .header-left{
+    display:flex;
+    align-items:flex-start;
+    gap:14px;
+  }
+  .theme-btn{
+    flex:0 0 auto;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:38px;height:38px;
+    border-radius:50%;
+    border:none;
+    background:var(--bg);
+    color:var(--muted);
+    cursor:pointer;
+    padding:0;
+    margin-top:2px;
+    box-shadow:6px 6px 12px var(--sh-dark), -6px -6px 12px var(--sh-light);
+    transition:color .2s ease, box-shadow .12s ease;
+  }
+  .theme-btn:hover{
+    color:var(--amber);
+  }
+  .theme-btn:active{
+    box-shadow:inset 3px 3px 7px var(--sh-dark), inset -3px -3px 7px var(--sh-light);
+  }
+  .theme-btn svg{
+    width:18px;height:18px;
+  }
+  .theme-btn.spin svg{
+    animation:resetSpin .5s ease;
+  }
+  .clock-icon{
+    flex:0 0 auto;
+    width:40px;height:40px;
+    margin-top:2px;
+  }
+  .clock-icon circle{
+    fill:none;
+    stroke:var(--line);
+    stroke-width:2;
+  }
+  .clock-icon .tick{
+    stroke:var(--amber);
+    stroke-width:2.5;
+    stroke-linecap:round;
+    transform-origin:20px 20px;
+    animation:tick 60s linear infinite;
+  }
+  @keyframes tick{ to{ transform:rotate(360deg); } }
+
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin:0 0 6px;
+  }
+  h1{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:28px;
+    font-weight:700;
+    margin:0 0 6px;
+    letter-spacing:-.01em;
+  }
+  .sub{
+    margin:0;
+    font-size:13.5px;
+    color:var(--muted);
+    line-height:1.5;
+  }
+
+  /* ---------- Ticket cards ---------- */
+  .ticket{
+    background:var(--bg);
+    border:none;
+    border-radius:var(--radius);
+    position:relative;
+    height:100%;
+    box-shadow:14px 14px 30px var(--sh-dark), -14px -14px 30px var(--sh-light);
+    opacity:0;
+    transform:translateY(14px);
+    animation:riseIn .6s ease forwards;
+  }
+  .ticket:nth-of-type(1){animation-delay:.08s;}
+  .ticket:nth-of-type(2){animation-delay:.16s;}
+
+  @keyframes riseIn{
+    to{opacity:1; transform:translateY(0);}
+  }
+
+  .ticket-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:20px 24px 4px;
+  }
+  .ticket-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--muted);
+  }
+  .ticket-head-right{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .reset-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:28px;height:28px;
+    border-radius:50%;
+    border:none;
+    background:var(--bg);
+    color:var(--muted);
+    cursor:pointer;
+    padding:0;
+    box-shadow:5px 5px 10px var(--sh-dark), -5px -5px 10px var(--sh-light);
+    transition:color .2s ease, box-shadow .12s ease;
+  }
+  .reset-btn:hover{
+    color:var(--amber);
+  }
+  .reset-btn:active{
+    box-shadow:inset 3px 3px 6px var(--sh-dark), inset -3px -3px 6px var(--sh-light);
+  }
+  .reset-btn svg{
+    width:13px;height:13px;
+  }
+  .reset-btn.spin svg{
+    animation:resetSpin .5s ease;
+  }
+  @keyframes resetSpin{
+    to{ transform:rotate(-360deg); }
+  }
+  .ticket-tag{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10.5px;
+    color:var(--muted-2);
+    background:var(--bg);
+    border:none;
+    border-radius:20px;
+    padding:5px 11px;
+    box-shadow:3px 3px 7px var(--sh-dark), -3px -3px 7px var(--sh-light);
+  }
+
+  .field-row{
+    display:flex;
+    gap:12px;
+    padding:14px 24px 4px;
+  }
+  .field{
+    flex:1;
+  }
+  .field label{
+    display:block;
+    font-size:12.5px;
+    color:var(--muted);
+    margin-bottom:7px;
+    font-weight:600;
+  }
+  .hm-group{
+    display:flex;
+    align-items:center;
+    background:var(--bg);
+    border:none;
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:inset 5px 5px 10px var(--sh-dark), inset -5px -5px 10px var(--sh-light);
+    transition:box-shadow .2s ease;
+  }
+  .hm-group:focus-within{
+    box-shadow:inset 5px 5px 10px var(--sh-dark), inset -5px -5px 10px var(--sh-light), 0 0 0 3px rgba(var(--accent-rgb),0.14);
+  }
+  .hm-group input{
+    width:100%;
+    background:transparent;
+    border:none;
+    outline:none;
+    color:var(--text);
+    font-family:'JetBrains Mono', monospace;
+    font-size:16px;
+    font-weight:600;
+    padding:11px 4px;
+    text-align:center;
+    -moz-appearance:textfield;
+  }
+  .hm-group input::-webkit-outer-spin-button,
+  .hm-group input::-webkit-inner-spin-button{
+    -webkit-appearance:none;
+    margin:0;
+  }
+  .hm-group span{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--muted-2);
+    padding-right:10px;
+    letter-spacing:.05em;
+  }
+  .hm-group .divider{
+    width:1px;
+    height:20px;
+    background:var(--line);
+    opacity:.6;
+  }
+
+  .time-input-wrap{
+    background:var(--bg);
+    border:none;
+    border-radius:14px;
+    box-shadow:inset 5px 5px 10px var(--sh-dark), inset -5px -5px 10px var(--sh-light);
+    transition:box-shadow .2s ease;
+  }
+  .time-input-wrap:focus-within{
+    box-shadow:inset 5px 5px 10px var(--sh-dark), inset -5px -5px 10px var(--sh-light), 0 0 0 3px rgba(var(--accent-rgb),0.14);
+  }
+  .time-input-wrap input[type="time"]{
+    width:100%;
+    background:transparent;
+    border:none;
+    outline:none;
+    color:var(--text);
+    font-family:'JetBrains Mono', monospace;
+    font-size:17px;
+    font-weight:600;
+    padding:12px 14px;
+    color-scheme:light;
+  }
+  body[data-theme="dark"] .time-input-wrap input[type="time"]{
+    color-scheme:dark;
+  }
+
+  .hint{
+    padding:6px 24px 6px;
+    font-size:11.5px;
+    color:var(--muted-2);
+  }
+
+  /* ---------- Perforation ---------- */
+  .perforation{
+    position:relative;
+    height:26px;
+    margin:10px 0 0;
+  }
+  .perforation::before{
+    content:"";
+    position:absolute;
+    left:22px; right:22px; top:50%;
+    height:0;
+    border-top:1.5px dashed var(--line);
+    transform:translateY(-50%);
+  }
+  .perforation .notch{
+    position:absolute;
+    top:50%;
+    width:20px;height:20px;
+    border-radius:50%;
+    background:var(--bg);
+    box-shadow:inset 3px 3px 6px var(--sh-dark), inset -2px -2px 5px var(--sh-light);
+    transform:translateY(-50%);
+  }
+  .perforation .notch.left{ left:-10px; }
+  .perforation .notch.right{ right:-10px; }
+
+  /* ---------- Result zone ---------- */
+  .result{
+    margin:14px 20px 22px;
+    padding:20px 16px 22px;
+    border-radius:16px;
+    text-align:center;
+    background:var(--bg);
+    box-shadow:inset 6px 6px 14px var(--sh-dark), inset -6px -6px 14px var(--sh-light);
+  }
+  .result-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:10px;
+  }
+  .big-number{
+    font-family:'JetBrains Mono', monospace;
+    font-size:38px;
+    font-weight:700;
+    letter-spacing:.01em;
+    color:var(--mint);
+    line-height:1.1;
+    font-variant-numeric:tabular-nums;
+    transition:transform .28s cubic-bezier(.2,.7,.3,1), opacity .28s ease;
+  }
+  .big-number.amber{ color:var(--amber); }
+  .big-number.flip{
+    transform:translateY(-6px);
+    opacity:0;
+  }
+  .result-caption{
+    margin-top:8px;
+    font-size:12.5px;
+    color:var(--muted);
+  }
+  .result-caption b{ color:var(--text); font-weight:600; }
+  .colon-blink{ animation:blink 1.4s steps(1) infinite; }
+  @keyframes blink{ 50%{ opacity:.25; } }
+
+  .warn{
+    color:var(--danger);
+    font-size:12px;
+    text-align:center;
+    padding:0 24px 18px;
+    display:none;
+  }
+  .warn.show{ display:block; }
+
+  /* ---------- Advanced toggle ---------- */
+  .adv-checkbox{
+    position:absolute;
+    opacity:0;
+    pointer-events:none;
+  }
+  .adv-toggle-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:2px 24px 18px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .adv-switch{
+    flex:0 0 auto;
+    width:36px;height:22px;
+    border-radius:20px;
+    background:var(--bg);
+    border:none;
+    box-shadow:inset 3px 3px 6px var(--sh-dark), inset -3px -3px 6px var(--sh-light);
+    position:relative;
+    transition:box-shadow .2s ease;
+  }
+  .adv-switch::before{
+    content:"";
+    position:absolute;
+    top:3px; left:3px;
+    width:16px;height:16px;
+    border-radius:50%;
+    background:var(--muted);
+    box-shadow:2px 2px 5px var(--sh-dark), -1px -1px 3px var(--sh-light);
+    transition:transform .22s cubic-bezier(.2,.7,.3,1), background .2s ease;
+  }
+  .adv-checkbox:checked + .adv-toggle-row .adv-switch{
+    box-shadow:inset 3px 3px 6px var(--sh-dark), inset -3px -3px 6px var(--sh-light);
+  }
+  .adv-checkbox:checked + .adv-toggle-row .adv-switch::before{
+    transform:translateX(14px);
+    background:var(--amber);
+  }
+  .adv-toggle-label{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--muted);
+    transition:color .2s ease;
+  }
+  .adv-checkbox:checked + .adv-toggle-row .adv-toggle-label{ color:var(--text); }
+  .adv-checkbox:focus-visible + .adv-toggle-row .adv-switch{
+    box-shadow:0 0 0 3px rgba(var(--accent-rgb),0.18);
+  }
+
+  .adv-panel{
+    max-height:0;
+    opacity:0;
+    overflow:hidden;
+    transition:max-height .32s cubic-bezier(.2,.7,.3,1), opacity .25s ease;
+  }
+  .adv-checkbox:checked ~ .adv-panel{
+    max-height:220px;
+    opacity:1;
+  }
+  .adv-panel-inner{
+    padding-top:2px;
+  }
+  .adv-caption{
+    padding:2px 24px 16px;
+    font-size:12px;
+    color:var(--muted);
+    min-height:16px;
+  }
+  .adv-caption b{ color:var(--mint); font-weight:700; }
+
+  .auto-pulse{
+    animation:autoPulse .7s ease;
+  }
+  @keyframes autoPulse{
+    0%{ box-shadow:inset 5px 5px 10px var(--sh-dark), inset -5px -5px 10px var(--sh-light), 0 0 0 0 rgba(var(--accent-rgb),0.35); }
+    100%{ box-shadow:inset 5px 5px 10px var(--sh-dark), inset -5px -5px 10px var(--sh-light), 0 0 0 8px rgba(var(--accent-rgb),0); }
+  }
+
+  footer{
+    text-align:center;
+    font-family:'Space Grotesk', sans-serif;
+    font-size:14.5px;
+    font-weight:600;
+    letter-spacing:.01em;
+    color:var(--amber);
+    margin-top:20px;
+    transition:color .4s ease;
+  }
+
+  @media (max-width:420px){
+    .big-number{ font-size:36px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="header-left">
+      <svg class="clock-icon" viewBox="0 0 40 40">
+        <circle cx="20" cy="20" r="17"></circle>
+        <line class="tick" x1="20" y1="20" x2="20" y2="8"></line>
+        <line class="tick" x1="20" y1="20" x2="27" y2="20" style="animation-duration:720s;"></line>
+      </svg>
+      <div>
+        <h1>Punch Clock</h1>
+      </div>
+    </div>
+    <button type="button" class="theme-btn" id="themeBtn" title="Cycle color theme" aria-label="Cycle color theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2a10 10 0 1 0 10 10c0-1-1-2-3-2h-2a2 2 0 0 1-2-2c0-1 1-2 1-3a3 3 0 0 0-3-3z"></path>
+        <circle cx="7.3" cy="10.2" r="1.15"></circle>
+        <circle cx="9.6" cy="15.6" r="1.15"></circle>
+        <circle cx="14.8" cy="15.8" r="1.15"></circle>
+        <circle cx="16.6" cy="10.4" r="1.15"></circle>
+      </svg>
+    </button>
+  </header>
+
+  <div class="tickets-grid">
+
+  <!-- TICKET 1 : Days worked -->
+  <div class="ticket">
+    <div class="ticket-head">
+      <span class="ticket-label">Logged so far</span>
+      <div class="ticket-head-right">
+        <button type="button" class="reset-btn" id="resetBtn" title="Reset all fields" aria-label="Reset all fields">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 1 1-3-6.7"></path>
+            <polyline points="21 3 21 9 15 9"></polyline>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="totalH">Total time worked</label>
+        <div class="hm-group">
+          <input type="number" id="totalH" min="0" placeholder="0" inputmode="numeric">
+          <span>H</span>
+          <div class="divider"></div>
+          <input type="number" id="totalM" min="0" max="59" placeholder="0" inputmode="numeric">
+          <span>M</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="avgH">Average per day</label>
+        <div class="hm-group">
+          <input type="number" id="avgH" min="0" placeholder="7" inputmode="numeric" value="7">
+          <span>H</span>
+          <div class="divider"></div>
+          <input type="number" id="avgM" min="0" max="59" placeholder="12" inputmode="numeric" value="12">
+          <span>M</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="perforation">
+      <div class="notch left"></div>
+      <div class="notch right"></div>
+    </div>
+
+    <div class="result">
+      <div class="result-label">Days worked</div>
+      <div class="big-number" id="daysOut">0.0</div>
+      <div class="result-caption" id="daysCaption">enter your total and average to begin</div>
+    </div>
+    <div class="warn" id="daysWarn">Average per day needs to be more than zero.</div>
+
+    <input type="checkbox" id="advToggle" class="adv-checkbox">
+    <label for="advToggle" class="adv-toggle-row">
+      <span class="adv-switch"></span>
+      <span class="adv-toggle-label">Advanced: calculate the future</span>
+    </label>
+    <div class="adv-panel" id="advPanel">
+      <div class="adv-panel-inner">
+        <div class="field-row">
+          <div class="field">
+            <label for="advIn">In</label>
+            <div class="time-input-wrap"><input type="time" id="advIn"></div>
+          </div>
+          <div class="field">
+            <label for="advOut">Out</label>
+            <div class="time-input-wrap"><input type="time" id="advOut"></div>
+          </div>
+        </div>
+        <div class="adv-caption" id="advCaption"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TICKET 2 : Exit time -->
+  <div class="ticket">
+    <div class="ticket-head">
+      <span class="ticket-label">Today's punch</span>
+      <span class="ticket-tag">target 7h 12m</span>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="entryTime">Entry time</label>
+        <div class="time-input-wrap">
+          <input type="time" id="entryTime">
+        </div>
+      </div>
+    </div>
+
+    <div class="perforation">
+      <div class="notch left"></div>
+      <div class="notch right"></div>
+    </div>
+
+    <div class="result">
+      <div class="result-label">Clock out at</div>
+      <div class="big-number amber" id="exitOut">--<span class="colon-blink">:</span>--</div>
+      <div class="result-caption" id="exitCaption">enter your entry time to see your exit</div>
+    </div>
+    <div class="warn" id="exitWarn">Average per day needs to be more than zero to know your days worked.</div>
+  </div>
+
+  </div>
+
+  <footer>Developed by Md. Ashraful Islam Talukder</footer>
+
+</div>
+
+<script>
+(function(){
+  const totalH = document.getElementById('totalH');
+  const totalM = document.getElementById('totalM');
+  const avgH = document.getElementById('avgH');
+  const avgM = document.getElementById('avgM');
+  const entryTime = document.getElementById('entryTime');
+
+  const daysOut = document.getElementById('daysOut');
+  const daysCaption = document.getElementById('daysCaption');
+  const daysWarn = document.getElementById('daysWarn');
+  const exitOut = document.getElementById('exitOut');
+  const exitCaption = document.getElementById('exitCaption');
+  const exitWarn = document.getElementById('exitWarn');
+
+  const advToggle = document.getElementById('advToggle');
+  const advIn = document.getElementById('advIn');
+  const advOut = document.getElementById('advOut');
+  const advCaption = document.getElementById('advCaption');
+  const avgFieldWrap = avgH.closest('.hm-group');
+  const totalFieldWrap = totalH.closest('.hm-group');
+  const resetBtn = document.getElementById('resetBtn');
+  const themeBtn = document.getElementById('themeBtn');
+
+  const TARGET_MINUTES = 7 * 60 + 12; // fixed 7h 12m, always
+
+  function num(el){
+    const v = parseFloat(el.value);
+    return isNaN(v) || v < 0 ? 0 : v;
+  }
+
+  function formatHM(h, m){
+    h = Math.max(0, Math.round(h));
+    m = Math.max(0, Math.round(m));
+    return h + 'h ' + String(m).padStart(2,'0') + 'm';
+  }
+
+  function animateSwap(el, render){
+    el.classList.add('flip');
+    setTimeout(() => {
+      render();
+      el.classList.remove('flip');
+    }, 150);
+  }
+
+  function updateDays(){
+    const totalMinutes = num(totalH) * 60 + num(totalM);
+    const avgMinutes = num(avgH) * 60 + num(avgM);
+
+    if (avgMinutes <= 0){
+      daysWarn.classList.add('show');
+      animateSwap(daysOut, () => { daysOut.textContent = '0'; });
+      daysCaption.textContent = 'enter your total and average to begin';
+      return;
+    }
+    daysWarn.classList.remove('show');
+
+    const days = totalMinutes / avgMinutes;
+    const rounded = String(Math.round(days));
+
+    if (daysOut.dataset.current !== rounded){
+      animateSwap(daysOut, () => {
+        daysOut.textContent = rounded;
+        daysOut.dataset.current = rounded;
+      });
+    }
+
+    const fullDays = Math.floor(days);
+    const remainderMin = Math.round((days - fullDays) * avgMinutes);
+    daysCaption.textContent = totalMinutes > 0
+      ? fullDays + ' full day' + (fullDays === 1 ? '' : 's') + ', plus ' + remainderMin + 'm on top'
+      : 'enter your total and average to begin';
+  }
+
+  function updateExit(){
+    const totalMinutes = num(totalH) * 60 + num(totalM);
+    const avgMinutes = num(avgH) * 60 + num(avgM);
+
+    if (avgMinutes <= 0){
+      exitWarn.classList.add('show');
+      animateSwap(exitOut, () => {
+        exitOut.innerHTML = '--<span class="colon-blink">:</span>--';
+      });
+      exitCaption.textContent = 'enter your average per day to begin';
+      return;
+    }
+    exitWarn.classList.remove('show');
+
+    if (!entryTime.value){
+      animateSwap(exitOut, () => {
+        exitOut.innerHTML = '--<span class="colon-blink">:</span>--';
+      });
+      exitCaption.textContent = 'enter your entry time to see your exit';
+      return;
+    }
+
+    // Days worked so far (precise, not rounded) + today.
+    const daysWorked = totalMinutes / avgMinutes;
+    const newDayCount = daysWorked + 1;
+
+    // Minutes needed today so (total so far + today) / (days + 1) = 7h12m exactly.
+    let neededToday = (TARGET_MINUTES * newDayCount) - totalMinutes;
+
+    let note = '';
+    if (neededToday < 0){
+      note = "you're already ahead of average — ";
+      neededToday = 0;
+    }
+
+    const [eh, em] = entryTime.value.split(':').map(Number);
+    let totalMin = eh * 60 + em + Math.round(neededToday);
+
+    let overflowDay = false;
+    if (totalMin >= 24 * 60){
+      totalMin -= 24 * 60;
+      overflowDay = true;
+    }
+
+    let outH = Math.floor(totalMin / 60);
+    const outM = totalMin % 60;
+    const period = outH >= 12 ? 'PM' : 'AM';
+    let displayH = outH % 12;
+    if (displayH === 0) displayH = 12;
+
+    const display = String(displayH).padStart(2,'0') + '<span class="colon-blink">:</span>' + String(outM).padStart(2,'0') + ' ' + period;
+
+    if (exitOut.dataset.current !== display){
+      animateSwap(exitOut, () => {
+        exitOut.innerHTML = display;
+        exitOut.dataset.current = display;
+      });
+    }
+
+    exitCaption.innerHTML = (overflowDay ? 'crosses into the next day — ' : '') + note +
+      'that\'s <b>' + formatHM(Math.floor(neededToday / 60), Math.round(neededToday % 60)) + '</b> today to hold a <b>7h 12m</b> overall average';
+  }
+
+  function updateAdvanced(){
+    if (!advToggle.checked) return;
+
+    if (!advIn.value || !advOut.value){
+      advCaption.textContent = '';
+      return;
+    }
+
+    const avgMinutes = num(avgH) * 60 + num(avgM);
+    const totalMinutes = num(totalH) * 60 + num(totalM);
+
+    if (avgMinutes <= 0){
+      advCaption.textContent = 'Set an average per day above first.';
+      return;
+    }
+
+    const [ih, im] = advIn.value.split(':').map(Number);
+    const [oh, om] = advOut.value.split(':').map(Number);
+    let duration = (oh * 60 + om) - (ih * 60 + im);
+    if (duration <= 0) duration += 24 * 60; // handles an overnight punch
+
+    const daysWorked = totalMinutes / avgMinutes;
+    const newDays = daysWorked + 1;
+    const newTotalMinutes = totalMinutes + duration;
+    const newAvgMinutes = newTotalMinutes / newDays;
+
+    let newTotalH = Math.floor(newTotalMinutes / 60);
+    let newTotalM = Math.round(newTotalMinutes % 60);
+    if (newTotalM === 60){ newTotalM = 0; newTotalH += 1; }
+
+    let newAvgH = Math.floor(newAvgMinutes / 60);
+    let newAvgM = Math.round(newAvgMinutes % 60);
+    if (newAvgM === 60){ newAvgM = 0; newAvgH += 1; }
+
+    totalH.value = newTotalH;
+    totalM.value = newTotalM;
+    avgH.value = newAvgH;
+    avgM.value = newAvgM;
+
+    [avgFieldWrap, totalFieldWrap].forEach(wrap => {
+      wrap.classList.remove('auto-pulse');
+      void wrap.offsetWidth; // restart the pulse animation
+      wrap.classList.add('auto-pulse');
+    });
+
+    advCaption.innerHTML = 'Worked <b>' + formatHM(Math.floor(duration / 60), duration % 60) +
+      '</b> today → total now <b>' + formatHM(newTotalH, newTotalM) +
+      '</b>, average set to <b>' + formatHM(newAvgH, newAvgM) + '</b>';
+  }
+
+  function updateAll(){
+    updateAdvanced();
+    updateDays();
+    updateExit();
+  }
+
+  [totalH, totalM, avgH, avgM, entryTime, advIn, advOut, advToggle].forEach(el => el.addEventListener('input', updateAll));
+  advToggle.addEventListener('change', () => {
+    if (!advToggle.checked){
+      advIn.value = '';
+      advOut.value = '';
+      advCaption.textContent = '';
+    }
+    updateAll();
+  });
+
+  resetBtn.addEventListener('click', () => {
+    [totalH, totalM, avgH, avgM, entryTime, advIn, advOut].forEach(el => { el.value = ''; });
+    advToggle.checked = false;
+    advCaption.textContent = '';
+    daysOut.dataset.current = '';
+    exitOut.dataset.current = '';
+
+    resetBtn.classList.remove('spin');
+    void resetBtn.offsetWidth; // restart the spin animation
+    resetBtn.classList.add('spin');
+
+    updateAll();
+  });
+
+  // ---------- Theme cycling: white -> sky blue -> dark -> white ... ----------
+  const THEMES = [
+    {
+      name: 'sky',
+      vars: {
+        '--bg':'#D8ECFB', '--line':'#B7DBF2', '--line-soft':'#C6E2F5',
+        '--text':'#132542', '--muted':'#4E77A4', '--muted-2':'#7BA1C4',
+        '--amber':'#E14C63', '--amber-dim':'#F0A2B0',
+        '--mint':'#1D6FB8', '--mint-dim':'#6FA3D1',
+        '--danger':'#D23C3C',
+        '--sh-dark':'rgba(120,163,205,0.45)', '--sh-light':'rgba(255,255,255,0.85)',
+        '--accent-rgb':'225,76,99', '--accent2-rgb':'29,111,184'
+      }
+    },
+    {
+      name: 'white',
+      vars: {
+        '--bg':'#E9EDF4', '--line':'#C7CFDF', '--line-soft':'#D6DCE8',
+        '--text':'#2B3348', '--muted':'#6C7594', '--muted-2':'#8B93AD',
+        '--amber':'#C2740E', '--amber-dim':'#C9A46B',
+        '--mint':'#0B8F6F', '--mint-dim':'#5FA396',
+        '--danger':'#D23C3C',
+        '--sh-dark':'rgba(163,177,198,0.55)', '--sh-light':'rgba(255,255,255,0.95)',
+        '--accent-rgb':'194,116,14', '--accent2-rgb':'11,143,111'
+      }
+    },
+    {
+      name: 'dark',
+      vars: {
+        '--bg':'#2B2C31', '--line':'#3C3D43', '--line-soft':'#34353A',
+        '--text':'#EDEDEF', '--muted':'#9A9CA3', '--muted-2':'#6E7077',
+        '--amber':'#E8541E', '--amber-dim':'#B5713F',
+        '--mint':'#F2A93D', '--mint-dim':'#B98A4E',
+        '--danger':'#FF5C5C',
+        '--sh-dark':'rgba(0,0,0,0.55)', '--sh-light':'rgba(255,255,255,0.045)',
+        '--accent-rgb':'232,84,30', '--accent2-rgb':'242,169,61'
+      }
+    }
+  ];
+
+  let themeIndex = 0; // starts on white
+
+  function applyTheme(index){
+    const theme = THEMES[index];
+    const root = document.documentElement.style;
+    Object.keys(theme.vars).forEach(key => root.setProperty(key, theme.vars[key]));
+    document.body.dataset.theme = theme.name;
+  }
+
+  themeBtn.addEventListener('click', () => {
+    themeIndex = (themeIndex + 1) % THEMES.length;
+    applyTheme(themeIndex);
+
+    themeBtn.classList.remove('spin');
+    void themeBtn.offsetWidth; // restart the spin animation
+    themeBtn.classList.add('spin');
+  });
+
+  applyTheme(themeIndex);
+  updateAll();
+})();
+</script>
+
+</body>
+</html>
