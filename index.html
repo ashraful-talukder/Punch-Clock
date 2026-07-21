@@ -790,11 +790,6 @@
 
     if (!advBase) captureAdvBase();
 
-    if (advBase.avgMinutes <= 0){
-      advCaption.textContent = 'Set an average per day above first.';
-      return;
-    }
-
     const [ih, im] = advIn.value.split(':').map(Number);
     const [oh, om] = advOut.value.split(':').map(Number);
     let duration = (oh * 60 + om) - (ih * 60 + im);
