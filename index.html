@@ -607,9 +607,9 @@
 
     <div class="field-row">
       <div class="field">
-        <label for="entryTime">Entry time</label>
+        <label for="punchTime" id="punchLabel">Entry time</label>
         <div class="time-input-wrap">
-          <input type="time" id="entryTime">
+          <input type="time" id="punchTime">
         </div>
       </div>
     </div>
@@ -620,10 +620,16 @@
     </div>
 
     <div class="result">
-      <div class="result-label">Clock out at</div>
+      <div class="result-label" id="resultLabel">Clock out at</div>
       <div class="big-number amber" id="exitOut">--<span class="colon-blink">:</span>--</div>
       <div class="result-caption" id="exitCaption">enter your entry time to see your exit</div>
     </div>
+
+    <input type="checkbox" id="modeToggle" class="adv-checkbox">
+    <label for="modeToggle" class="adv-toggle-row">
+      <span class="adv-switch"></span>
+      <span class="adv-toggle-label" id="modeToggleLabel">Reverse punch</span>
+    </label>
   </div>
 
   </div>
@@ -638,7 +644,10 @@
   const totalM = document.getElementById('totalM');
   const avgH = document.getElementById('avgH');
   const avgM = document.getElementById('avgM');
-  const entryTime = document.getElementById('entryTime');
+  const punchTime = document.getElementById('punchTime');
+  const punchLabel = document.getElementById('punchLabel');
+  const resultLabel = document.getElementById('resultLabel');
+  const modeToggle = document.getElementById('modeToggle');
 
   const daysOut = document.getElementById('daysOut');
   const daysCaption = document.getElementById('daysCaption');
@@ -705,6 +714,10 @@
   function updateExit(){
     const totalMinutes = num(totalH) * 60 + num(totalM);
     const avgMinutes = num(avgH) * 60 + num(avgM);
+    const isExitMode = modeToggle.checked;
+
+    punchLabel.textContent = isExitMode ? 'Exit time' : 'Entry time';
+    resultLabel.textContent = isExitMode ? 'Clock in at' : 'Clock out at';
 
     if (avgMinutes <= 0){
       animateSwap(exitOut, () => {
@@ -714,11 +727,13 @@
       return;
     }
 
-    if (!entryTime.value){
+    if (!punchTime.value){
       animateSwap(exitOut, () => {
         exitOut.innerHTML = '--<span class="colon-blink">:</span>--';
       });
-      exitCaption.textContent = 'enter your entry time to see your exit';
+      exitCaption.textContent = isExitMode
+        ? 'enter your exit time to see your entry'
+        : 'enter your entry time to see your exit';
       return;
     }
 
@@ -735,13 +750,24 @@
       neededToday = 0;
     }
 
-    const [eh, em] = entryTime.value.split(':').map(Number);
-    let totalMin = eh * 60 + em + Math.round(neededToday);
+    const [ph, pm] = punchTime.value.split(':').map(Number);
+    let totalMin;
+    let dayNote = '';
 
-    let overflowDay = false;
-    if (totalMin >= 24 * 60){
-      totalMin -= 24 * 60;
-      overflowDay = true;
+    if (!isExitMode){
+      // Entry known -> solve for exit.
+      totalMin = ph * 60 + pm + Math.round(neededToday);
+      if (totalMin >= 24 * 60){
+        totalMin -= 24 * 60;
+        dayNote = 'crosses into the next day — ';
+      }
+    } else {
+      // Exit known -> solve for entry.
+      totalMin = ph * 60 + pm - Math.round(neededToday);
+      if (totalMin < 0){
+        totalMin += 24 * 60;
+        dayNote = 'starts the day before — ';
+      }
     }
 
     let outH = Math.floor(totalMin / 60);
@@ -759,7 +785,7 @@
       });
     }
 
-    exitCaption.innerHTML = (overflowDay ? 'crosses into the next day — ' : '') + note +
+    exitCaption.innerHTML = dayNote + note +
       'that\'s <b>' + formatHM(Math.floor(neededToday / 60), Math.round(neededToday % 60)) + '</b> today to hold a <b>7h 12m</b> overall average';
   }
 
@@ -827,11 +853,17 @@
     updateAll();
   }
 
-  // Total/average edits only affect "Logged so far"; entry time only affects
+  // Total/average edits only affect "Logged so far"; punch time only affects
   // "Today's punch" — the two never cross-contaminate.
   [totalH, totalM, avgH, avgM].forEach(el => el.addEventListener('input', updateAll));
-  entryTime.addEventListener('input', updateExit);
+  punchTime.addEventListener('input', updateExit);
   [advIn, advOut].forEach(el => el.addEventListener('input', updateAdvancedAndAll));
+
+  modeToggle.addEventListener('change', () => {
+    punchTime.value = '';
+    exitOut.dataset.current = '';
+    updateExit();
+  });
 
   advToggle.addEventListener('change', () => {
     if (advToggle.checked){
@@ -846,7 +878,8 @@
   });
 
   resetBtn.addEventListener('click', () => {
-    [totalH, totalM, avgH, avgM, entryTime, advIn, advOut].forEach(el => { el.value = ''; });
+    [totalH, totalM, avgH, avgM, punchTime, advIn, advOut].forEach(el => { el.value = ''; });
+    modeToggle.checked = false;
     advToggle.checked = false;
     advCaption.textContent = '';
     advBase = null;
