@@ -575,7 +575,6 @@
       <div class="big-number" id="daysOut">0.0</div>
       <div class="result-caption" id="daysCaption">enter your total and average to begin</div>
     </div>
-    <div class="warn" id="daysWarn">Average per day needs to be more than zero.</div>
 
     <input type="checkbox" id="advToggle" class="adv-checkbox">
     <label for="advToggle" class="adv-toggle-row">
@@ -625,7 +624,6 @@
       <div class="big-number amber" id="exitOut">--<span class="colon-blink">:</span>--</div>
       <div class="result-caption" id="exitCaption">enter your entry time to see your exit</div>
     </div>
-    <div class="warn" id="exitWarn">Average per day needs to be more than zero to know your days worked.</div>
   </div>
 
   </div>
@@ -644,10 +642,8 @@
 
   const daysOut = document.getElementById('daysOut');
   const daysCaption = document.getElementById('daysCaption');
-  const daysWarn = document.getElementById('daysWarn');
   const exitOut = document.getElementById('exitOut');
   const exitCaption = document.getElementById('exitCaption');
-  const exitWarn = document.getElementById('exitWarn');
 
   const advToggle = document.getElementById('advToggle');
   const advIn = document.getElementById('advIn');
@@ -684,12 +680,10 @@
     const avgMinutes = num(avgH) * 60 + num(avgM);
 
     if (avgMinutes <= 0){
-      daysWarn.classList.add('show');
       animateSwap(daysOut, () => { daysOut.textContent = '0'; });
       daysCaption.textContent = 'enter your total and average to begin';
       return;
     }
-    daysWarn.classList.remove('show');
 
     const days = totalMinutes / avgMinutes;
     const rounded = String(Math.round(days));
@@ -713,14 +707,12 @@
     const avgMinutes = num(avgH) * 60 + num(avgM);
 
     if (avgMinutes <= 0){
-      exitWarn.classList.add('show');
       animateSwap(exitOut, () => {
         exitOut.innerHTML = '--<span class="colon-blink">:</span>--';
       });
       exitCaption.textContent = 'enter your average per day to begin';
       return;
     }
-    exitWarn.classList.remove('show');
 
     if (!entryTime.value){
       animateSwap(exitOut, () => {
